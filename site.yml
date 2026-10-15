@@ -1,0 +1,77 @@
+---
+- name: Install Docker and deploy web and database containers
+  hosts: docker_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: Update apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Docker
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - python3-docker
+        state: present
+
+    - name: Start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Start Docker socket
+      ansible.builtin.service:
+        name: docker.socket
+        state: started
+        enabled: yes
+
+    - name: Add user to Docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Create project folder
+      ansible.builtin.file:
+        path: /opt/docker-ansible
+        state: directory
+        mode: '0755'
+
+    - name: Copy Dockerfile
+      ansible.builtin.copy:
+        src: Dockerfile
+        dest: /opt/docker-ansible/Dockerfile
+        mode: '0644'
+
+    - name: Build Docker image
+      community.docker.docker_image:
+        name: docker-web-server
+        tag: latest
+        source: build
+        build:
+          path: /opt/docker-ansible
+
+    - name: Run web server
+      community.docker.docker_container:
+        name: web-server
+        image: docker-web-server:latest
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "8080:80"
+
+    - name: Run database server
+      community.docker.docker_container:
+        name: database-server
+        image: mariadb:10.11
+        state: started
+        restart_policy: unless-stopped
+        env:
+          MARIADB_ROOT_PASSWORD: "bea1234"
+          MARIADB_DATABASE: "activitydb"
+        ports:
+          - "3307:3306"

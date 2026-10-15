@@ -1,0 +1,9 @@
+---
+all:
+  children:
+    docker_servers:
+      hosts:
+        ubuntu:
+          ansible_host: 192.168.56.116
+          ansible_user: beatriceduenas
+          ansible_become: true
